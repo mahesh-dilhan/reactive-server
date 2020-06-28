@@ -18,6 +18,7 @@ import reactor.core.publisher.Mono;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.web.reactive.function.server.EntityResponse.fromPublisher;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
+import static org.springframework.web.reactive.function.server.ServerResponse.notFound;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
 @Component
@@ -29,15 +30,44 @@ public class PubHandler{
 		this.personRepository = personRepository;
 	}
 
-
-	public Mono<ServerResponse> getName(ServerRequest request){
+	/**
+	 * Get All Colleagues
+	 * @param request
+	 * @return
+	 */
+	public Mono<ServerResponse> getColleagues(ServerRequest request){
 		return ok().contentType(APPLICATION_JSON)
 				.body(personRepository.findAll(), Person.class);
 	}
+
+	/**
+	 * Get Specific colleague
+	 * @param request
+	 * @return
+	 */
+	public Mono<ServerResponse> getColleague(ServerRequest request){
+		var name  =request.pathVariable("name");
+		final Mono<Person> person = personRepository.findByName(name);
+		return person
+				.flatMap(p -> ok().contentType(APPLICATION_JSON).body(person, Person.class))
+				.switchIfEmpty(notFound().build());
+	}
+
+	/**
+	 * Save Colleague
+	 * @param request
+	 * @return
+	 */
+	public Mono<ServerResponse> saveCollegue(ServerRequest request){
+		Mono<Person> body = request.bodyToMono(Person.class);
+		Mono<Person> person = body.flatMap(this.personRepository::save);
+		return ok().contentType(APPLICATION_JSON).body(person,Person.class);
+	}
+
 }
 
 interface PersonRepository extends ReactiveMongoRepository<Person,String>{
-
+	Mono<Person> findByName(String name);
 }
 
 
@@ -60,6 +90,10 @@ class DataGenerator{
 		this.personRepository = personRepository;
 	}
 
+	/**
+	 * Data init
+	 * @throws Exception
+	 */
 	@EventListener(ApplicationReadyEvent.class)
 	public void writeData() throws Exception{
 		var collegues = Flux.just("Xiaoyuan","Lloyd","Bing Jie","Swapnik","Reni","Vlad","Murali","Naren","Kishore","SriDevi")
